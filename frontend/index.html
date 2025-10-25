@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CropCare AI - Disease Diagnosis</title>
+
+  <style>
+    /* General layout */
+    body {
+      font-family: "Poppins", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f9fefa, #e8f5e9);
+      margin: 0;
+      padding: 2rem;
+      color: #2f4f2f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+      animation: fadeIn 1.5s ease;
+    }
+
+    header h1 {
+      font-size: 2.8rem;
+      font-weight: bold;
+      color: #2f6f2f;
+      margin-bottom: 0.4rem;
+      text-shadow: 0px 2px 8px rgba(46, 125, 50, 0.2);
+    }
+
+    header p {
+      font-size: 1.1rem;
+      color: #4a774a;
+    }
+
+    /* Upload Section */
+    #uploadSection {
+      background: white;
+      padding: 2rem;
+      border-radius: 15px;
+      box-shadow: 0px 8px 18px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 550px;
+      transition: transform 0.25s ease, box-shadow 0.3s ease;
+    }
+
+    #uploadSection:hover {
+      transform: scale(1.02);
+      box-shadow: 0px 12px 22px rgba(0, 0, 0, 0.15);
+    }
+
+    #imagePreview {
+      display: none;
+      max-width: 100%;
+      border-radius: 10px;
+      margin-top: 1.2rem;
+      animation: fadeIn 0.8s ease-in;
+    }
+
+    /* Animated glowing button */
+    label.custom-upload-btn {
+      background-color: #2f6f2f;
+      color: white;
+      padding: 12px 25px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      display: inline-block;
+      margin: 1rem 0;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 12px rgba(47, 111, 47, 0.4);
+    }
+
+    label.custom-upload-btn:hover {
+      background-color: #318531;
+      transform: translateY(-3px);
+      box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    textarea {
+      width: 100%;
+      margin-top: 1rem;
+      padding: 0.8rem;
+      border: 1.5px solid #4a774a;
+      border-radius: 8px;
+      resize: none;
+      outline: none;
+      font-size: 1rem;
+      background-color: #fefefe;
+      transition: box-shadow 0.25s ease;
+    }
+
+    textarea:focus {
+      box-shadow: 0 0 10px rgba(97, 183, 97, 0.4);
+    }
+
+    button {
+      background: linear-gradient(90deg, #4caf50, #66bb6a);
+      color: white;
+      border: none;
+      padding: 0.8rem 2rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 1.5rem;
+      font-weight: 600;
+      width: 100%;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      background: linear-gradient(90deg, #43a047, #388e3c);
+      box-shadow: 0 4px 15px rgba(56, 142, 60, 0.3);
+    }
+
+    button:disabled {
+      background: #a4c1a4;
+      cursor: not-allowed;
+    }
+
+    #resultContainer {
+      background-color: #e6f4e6;
+      padding: 1.2rem;
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
+      margin-top: 2rem;
+      display: none;
+      animation: slideUp 0.6s ease-out;
+    }
+
+    /* Toast popup */
+    #toast {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      background-color: #2f6f2f;
+      color: white;
+      padding: 0.9rem 1.4rem;
+      border-radius: 8px;
+      display: none;
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+      animation: fadeIn 0.5s ease forwards;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from {opacity: 0;}
+      to {opacity: 1;}
+    }
+
+    @keyframes slideUp {
+      from {transform: translateY(30px); opacity: 0;}
+      to {transform: translateY(0); opacity: 1;}
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>CropCare AI</h1>
+    <p>Advanced multi-modal AI for instant crop disease diagnosis and prevention</p>
+  </header>
+
+  <div id="uploadSection">
+    <label for="imageInput" class="custom-upload-btn">📸 Upload Image</label>
+    <input type="file" id="imageInput" accept="image/*" />
+    <img id="imagePreview" alt="Image Preview" />
+
+    <textarea id="promptInput" rows="4" placeholder="Ask a question about your plant (optional)..."></textarea>
+
+    <button id="diagnoseBtn">🔍 Diagnose Crop</button>
+
+    <div id="resultContainer">
+      <h3>Diagnosis Result</h3>
+      <p><strong>Crop:</strong> Tomato</p>
+      <p><strong>Disease:</strong> Early Blight</p>
+      <p><strong>Confidence:</strong> 93%</p>
+      <p><strong>Treatment:</strong> Use copper fungicide spray.</p>
+    </div>
+  </div>
+
+  <div id="toast">✅ Image uploaded successfully!</div>
+
+  <script>
+    const imageInput = document.getElementById("imageInput");
+    const imagePreview = document.getElementById("imagePreview");
+    const toast = document.getElementById("toast");
+    const diagnoseBtn = document.getElementById("diagnoseBtn");
+    const resultContainer = document.getElementById("resultContainer");
+
+    imageInput.addEventListener("change", function () {
+      if (this.files && this.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          imagePreview.src = e.target.result;
+          imagePreview.style.display = "block";
+        };
+        reader.readAsDataURL(this.files[0]);
+
+        // Show toast animation
+        toast.style.display = "block";
+        setTimeout(() => (toast.style.display = "none"), 2500);
+      }
+    });
+
+    diagnoseBtn.addEventListener("click", () => {
+      diagnoseBtn.disabled = true;
+      diagnoseBtn.innerText = "⏳ Diagnosing...";
+      setTimeout(() => {
+        diagnoseBtn.disabled = false;
+        diagnoseBtn.innerText = "🔍 Diagnose Crop";
+        resultContainer.style.display = "block";
+        resultContainer.scrollIntoView({ behavior: "smooth" });
+      }, 1500);
+    });
+  </script>
+</body>
+</html>
