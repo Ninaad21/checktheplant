@@ -2,11 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CropCare AI - Disease Diagnosis</title>
+  <title>CropCare AI – Diagnosis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <style>
-    /* 🌿 Base styling */
     * {
       box-sizing: border-box;
       font-family: "Poppins", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -14,249 +13,227 @@
 
     body {
       margin: 0;
-      padding: 0;
-      background: linear-gradient(120deg, #dff6e3, #f3fff2);
-      overflow-x: hidden;
-      position: relative;
       min-height: 100vh;
+      background: url("/static/crop-bg.png") center center / cover no-repeat fixed;
       display: flex;
-      flex-direction: column;
       align-items: center;
-    }
-
-    /* 🍃 Floating leaves animation */
-    @keyframes float {
-      0% { transform: translateY(0) rotate(0deg); opacity: 0.8; }
-      50% { transform: translateY(-20px) rotate(45deg); opacity: 1; }
-      100% { transform: translateY(0) rotate(90deg); opacity: 0.8; }
-    }
-
-    .leaf {
-      position: absolute;
-      width: 20px;
-      height: 20px;
-      background: url('https://cdn-icons-png.flaticon.com/512/765/765514.png') no-repeat center/contain;
-      opacity: 0.3;
-      animation: float 6s infinite ease-in-out;
-    }
-
-    .leaf:nth-child(1) { top: 20%; left: 10%; animation-delay: 0s; }
-    .leaf:nth-child(2) { top: 60%; left: 80%; animation-delay: 2s; }
-    .leaf:nth-child(3) { top: 40%; left: 50%; animation-delay: 4s; }
-    .leaf:nth-child(4) { top: 75%; left: 25%; animation-delay: 6s; }
-
-    /* 🌱 Header */
-    header {
-      text-align: center;
-      margin-top: 2rem;
-      margin-bottom: 1rem;
-      animation: fadeIn 1.5s ease;
-    }
-
-    header h1 {
-      font-size: 3rem;
-      font-weight: 700;
-      color: #245c34;
-      letter-spacing: 1px;
-      text-shadow: 0px 3px 10px rgba(36, 92, 52, 0.25);
-    }
-
-    header p {
-      font-size: 1.1rem;
-      color: #4b704b;
-      margin-top: 0.3rem;
-    }
-
-    /* 🔗 Navigation Buttons */
-    #navButtons {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-
-    .nav-btn {
-      background: rgba(36, 92, 52, 0.9);
+      justify-content: center;
       color: #fff;
-      padding: 10px 22px;
-      border-radius: 10px;
+      position: relative;
+    }
+
+    /* Dark overlay */
+    body::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 0;
+    }
+
+    /* 🔝 Top Bar */
+    .topbar {
+      position: absolute;
+      top: 0;
+      width: 100%;
+      height: 80px;
+      padding: 0 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(8px);
+      z-index: 2;
+    }
+
+    .brand {
+      font-size: 1.3rem;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 22px;
+    }
+
+    .top-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #ffffff;
       text-decoration: none;
+      font-size: 1rem;
       font-weight: 600;
-      letter-spacing: 0.5px;
-      transition: all 0.3s ease;
-      backdrop-filter: blur(5px);
-      box-shadow: 0 4px 12px rgba(36, 92, 52, 0.25);
+      transition: transform 0.25s ease, color 0.25s ease;
     }
 
-    .nav-btn:hover {
-      background: #388e3c;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+    .top-link span {
+      position: relative;
     }
 
-    /* 🌾 Upload Section (Glassmorphism) */
+    .top-link:hover {
+      transform: translateY(-2px) scale(1.05);
+      color: #1dd1a1;
+    }
+
+    .top-link:hover span::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -4px;
+      width: 100%;
+      height: 2px;
+      background: #1dd1a1;
+      border-radius: 10px;
+    }
+
+    /* 🪟 Glass Card */
     #uploadSection {
-      background: rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      padding: 2rem;
+      z-index: 1;
+      background: rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(18px);
       border-radius: 20px;
-      box-shadow: 0px 8px 25px rgba(0, 0, 0, 0.1);
+      padding: 28px;
       width: 90%;
-      max-width: 550px;
+      max-width: 420px;
       text-align: center;
-      animation: slideUp 0.8s ease;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
     }
 
-    #uploadSection:hover {
-      transform: scale(1.01);
-      box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.15);
+    #uploadSection h2 {
+      margin-top: 0;
+      font-size: 1.6rem;
+      margin-bottom: 14px;
     }
 
-    #imagePreview {
-      display: none;
-      max-width: 100%;
-      border-radius: 12px;
-      margin-top: 1.2rem;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-      animation: fadeIn 0.8s ease-in;
+    #userInfo {
+      font-size: 0.85rem;
+      opacity: 0.9;
+      margin-bottom: 10px;
     }
 
     label.custom-upload-btn {
-      background-color: #2f6f2f;
-      color: white;
-      padding: 12px 25px;
-      border-radius: 8px;
+      display: inline-block;
+      background: #ff6b6b;
+      padding: 10px 18px;
+      border-radius: 10px;
       cursor: pointer;
       font-weight: 600;
-      display: inline-block;
-      margin: 1rem 0;
-      transition: all 0.3s ease;
-      box-shadow: 0 0 12px rgba(47, 111, 47, 0.4);
-    }
-
-    label.custom-upload-btn:hover {
-      background-color: #318531;
-      transform: translateY(-3px);
-      box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+      color: #fff;
+      margin-bottom: 14px;
     }
 
     input[type="file"] {
       display: none;
     }
 
-    textarea {
-      width: 100%;
-      margin-top: 1rem;
-      padding: 0.8rem;
-      border: 1.5px solid #4a774a;
-      border-radius: 10px;
-      resize: none;
-      outline: none;
-      font-size: 1rem;
-      background-color: #fefefe;
-      transition: box-shadow 0.25s ease;
+    #imagePreview {
+      display: none;
+      max-width: 100%;
+      border-radius: 14px;
+      margin-top: 14px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
     }
 
-    textarea:focus {
-      box-shadow: 0 0 12px rgba(97, 183, 97, 0.4);
+    /* 📝 TEXTAREA (ADDED BACK) */
+    #promptInput {
+      width: 100%;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: none;
+      outline: none;
+      resize: none;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: #00332a;
+      background: rgba(255, 255, 255, 0.85);
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    #promptInput::placeholder {
+      color: #5f6f6f;
     }
 
     button {
-      background: linear-gradient(90deg, #4caf50, #66bb6a);
-      color: white;
-      border: none;
-      padding: 0.9rem 2.2rem;
-      font-size: 1rem;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      margin-top: 1.5rem;
-      font-weight: 600;
       width: 100%;
-      letter-spacing: 0.4px;
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      background: #1dd1a1;
+      color: #00332a;
+      font-weight: 700;
+      font-size: 1rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     button:hover {
       transform: translateY(-2px);
-      background: linear-gradient(90deg, #43a047, #388e3c);
-      box-shadow: 0 4px 15px rgba(56, 142, 60, 0.3);
-    }
-
-    button:disabled {
-      background: #a4c1a4;
-      cursor: not-allowed;
+      box-shadow: 0 6px 20px rgba(29, 209, 161, 0.5);
     }
 
     #resultContainer {
-      background-color: rgba(230, 244, 230, 0.8);
-      padding: 1.5rem;
-      border-radius: 12px;
-      box-shadow: 0 0 8px rgba(76, 175, 80, 0.25);
-      margin-top: 2rem;
       display: none;
-      animation: slideUp 0.6s ease-out;
+      margin-top: 18px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 16px;
+      border-radius: 14px;
       text-align: left;
+      font-size: 0.9rem;
     }
 
     #resultContainer h3 {
       margin-top: 0;
-      color: #245c34;
+      color: #1dd1a1;
     }
 
-    /* ✅ Toast Notification */
     #toast {
       position: fixed;
-      bottom: 25px;
-      right: 25px;
-      background-color: #2f6f2f;
-      color: white;
-      padding: 0.9rem 1.4rem;
-      border-radius: 8px;
+      bottom: 20px;
+      right: 20px;
+      background: #1dd1a1;
+      color: #00332a;
+      padding: 10px 16px;
+      border-radius: 10px;
       display: none;
-      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-      animation: fadeIn 0.5s ease forwards;
-    }
-
-    /* ✨ Animations */
-    @keyframes fadeIn {
-      from {opacity: 0;}
-      to {opacity: 1;}
-    }
-
-    @keyframes slideUp {
-      from {transform: translateY(30px); opacity: 0;}
-      to {transform: translateY(0); opacity: 1;}
+      font-weight: 600;
+      z-index: 10;
     }
   </style>
 </head>
 
 <body>
-  <!-- 🍃 Floating decorative leaves -->
-  <div class="leaf"></div>
-  <div class="leaf"></div>
-  <div class="leaf"></div>
-  <div class="leaf"></div>
 
-  <header>
-    <h1>🌱 CropCare AI</h1>
-    <p>Smart Diagnosis for Sustainable Agriculture</p>
-  </header>
-
-  <!-- 🧭 Navigation -->
-  <div id="navButtons">
-    <a href="pastresults.html" class="nav-btn">📜 View Past Results</a>
-    <a href="login.html" class="nav-btn" id="logoutBtn">🚪 Logout</a>
+  <!-- 🔝 Top Navigation -->
+  <div class="topbar">
+    <span class="brand">🌱 CropCare AI</span>
+    <div class="top-actions">
+      <a href="/pastresults" class="top-link">📜 <span>Past Results</span></a>
+      <a href="/login" id="logoutBtn" class="top-link">🚪 <span>Logout</span></a>
+    </div>
   </div>
 
-  <!-- 🌿 Upload Section -->
+  <!-- 🪟 Main Card -->
   <div id="uploadSection">
-    <label for="imageInput" class="custom-upload-btn">📸 Upload Image</label>
+    <h2>🌱 CropCare AI – Smart Crop Diagnosis</h2>
+    <div id="userInfo"></div>
+
+    <label for="imageInput" class="custom-upload-btn">📸 Choose an Image</label>
     <input type="file" id="imageInput" accept="image/*" />
-    <img id="imagePreview" alt="Image Preview" />
 
-    <textarea id="promptInput" rows="4" placeholder="Ask a question (e.g., 'symptoms', 'cause', 'cultural', 'biological', 'chemical', 'prevention', 'scientific name')"></textarea>
+    <img id="imagePreview" />
 
-    <button id="diagnoseBtn">🔍 Diagnose Crop</button>
+    <!-- ✅ TEXTAREA BACK -->
+    <textarea
+      id="promptInput"
+      rows="3"
+      placeholder="Ask a question (e.g., symptoms, causes, prevention, scientific name)"
+    ></textarea>
+
+    <button id="diagnoseBtn">🔍 Detect</button>
 
     <div id="resultContainer"></div>
   </div>
@@ -264,13 +241,10 @@
   <div id="toast">✅ Image uploaded successfully!</div>
 
   <script>
-    // 🔐 Optional: redirect to login if not logged in
-    (function enforceAuth() {
-      const username = localStorage.getItem("username");
-      if (!username) {
-        // uncomment if you want to force auth:
-        // window.location.href = "login.html";
-      }
+    (function () {
+      const username = localStorage.getItem("username") || "guest";
+      document.getElementById("userInfo").textContent =
+        "Current user: " + username;
     })();
 
     const imageInput = document.getElementById("imageInput");
@@ -281,105 +255,61 @@
     const promptInput = document.getElementById("promptInput");
     const logoutBtn = document.getElementById("logoutBtn");
 
-    // 🚪 Logout clears localStorage
     logoutBtn.addEventListener("click", () => {
-      localStorage.removeItem("username");
-      localStorage.removeItem("userEmail");  // in case older pages stored email
-      localStorage.removeItem("userName");
+      localStorage.clear();
     });
 
-    // 🖼️ Preview + toast
     imageInput.addEventListener("change", function () {
-      if (this.files && this.files[0]) {
+      if (this.files[0]) {
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = e => {
           imagePreview.src = e.target.result;
           imagePreview.style.display = "block";
         };
         reader.readAsDataURL(this.files[0]);
 
         toast.style.display = "block";
-        setTimeout(() => (toast.style.display = "none"), 2500);
+        setTimeout(() => (toast.style.display = "none"), 2000);
       }
     });
 
-    // 🔍 Diagnose
     diagnoseBtn.addEventListener("click", async () => {
       const imageFile = imageInput.files[0];
       const question = promptInput.value.trim();
       const username = localStorage.getItem("username") || "guest";
 
       if (!imageFile) {
-        alert("Please upload an image first!");
+        alert("Upload an image first!");
         return;
       }
 
       diagnoseBtn.disabled = true;
-      diagnoseBtn.innerText = "🌿 Analyzing...";
+      diagnoseBtn.innerText = "Analyzing...";
 
       const formData = new FormData();
-      formData.append("image", imageFile);     // must be 'image' to match backend
+      formData.append("image", imageFile);
       formData.append("question", question);
-      formData.append("username", username);   // ✅ crucial: matches backend
+      formData.append("username", username);
 
       try {
-        const res = await fetch("/predict", {
-          method: "POST",
-          body: formData,
-        });
-
+        const res = await fetch("/predict", { method: "POST", body: formData });
         const data = await res.json();
-        if (!res.ok) {
-          alert(data.error || "Prediction failed. Try again later.");
-          return;
-        }
 
-        // Helpers
-        const toBullets = (arr) => (Array.isArray(arr) ? arr.map(i => `• ${i}`).join("<br>") : arr);
-        const sol = data.solutions || { cultural: [], biological: [], chemical: [] };
-
-        // Render (CDDM schema + targeted QA answer)
         resultContainer.style.display = "block";
         resultContainer.innerHTML = `
-          <h3>Diagnosis Result</h3>
+          <h3>Prediction</h3>
           <p><strong>Crop:</strong> ${data.crop}</p>
           <p><strong>Disease:</strong> ${data.disease_name}</p>
-          <p><strong>Scientific Name:</strong> ${data.scientific_name}</p>
-
-          <div style="margin-top: 10px; padding: 10px; border-radius: 8px; background:#f1f8e9;">
-            <p style="margin:0 0 6px 0;">
-              <strong>Answer</strong> <span style="opacity:.7">(${data.qa_type || "summary"})</span>:
-            </p>
-            <pre style="white-space:pre-wrap; margin:0;">${data.qa_answer || "—"}</pre>
-          </div>
-
-          <details style="margin-top:12px;">
-            <summary style="cursor:pointer;">Show full details</summary>
-            <div style="margin-top:8px;">
-              <p><strong>Symptoms:</strong><br>${toBullets(data.symptoms)}</p>
-              <p><strong>Causes:</strong><br>${toBullets(data.causes)}</p>
-
-              <p><strong>Solutions:</strong></p>
-              <div style="margin-left:10px">
-                <p><em>Cultural</em><br>${toBullets(sol.cultural)}</p>
-                <p><em>Biological</em><br>${toBullets(sol.biological)}</p>
-                <p><em>Chemical</em><br>${toBullets(sol.chemical)}</p>
-              </div>
-
-              <p><strong>Prevention Summary:</strong><br>${data.prevention_summary}</p>
-            </div>
-          </details>
+          <p><strong>Confidence:</strong> ${data.confidence}%</p>
         `;
-
-        resultContainer.scrollIntoView({ behavior: "smooth" });
-      } catch (err) {
-        alert("Server error while predicting.");
-        console.error(err);
+      } catch {
+        alert("Prediction failed");
       } finally {
         diagnoseBtn.disabled = false;
-        diagnoseBtn.innerText = "🔍 Diagnose Crop";
+        diagnoseBtn.innerText = "🔍 Detect";
       }
     });
   </script>
 </body>
 </html>
+
