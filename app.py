@@ -2,29 +2,28 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from pymongo import MongoClient
-import os
-import datetime
+import os, datetime, urllib.parse
 from werkzeug.utils import secure_filename
 from PIL import Image
-import requests
-import urllib.parse
+import torch
+import clip
 
+# -------------------------
+# 🔹 Flask Setup
+# -------------------------
 app = Flask(__name__, static_folder='frontend/static')
 CORS(app)
 bcrypt = Bcrypt(app)
 
-# -------------------------
-# 🔹 Upload folder setup
-# -------------------------
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 # -------------------------
-# 🔹 MongoDB Atlas Connection
+# 🔹 MongoDB Atlas
 # -------------------------
 username_atlas = "plant_user_18"
-password_atlas = urllib.parse.quote_plus("Test1234!Test")  # URL-encode if special chars
+password_atlas = urllib.parse.quote_plus("Test1234!Test")
 client = MongoClient(
     f"mongodb+srv://{username_atlas}:{password_atlas}@cluster0.i5lhstg.mongodb.net/?retryWrites=true&w=majority"
 )
@@ -33,285 +32,307 @@ users = db["users"]
 results = db["results"]
 
 # -------------------------
-# 🔹 Serve HTML pages
+# 🔹 CLIP MODEL (Multimodal Core)
+# -------------------------
+device = "cuda" if torch.cuda.is_available() else "cpu"
+clip_model, clip_preprocess = clip.load("ViT-B/32", device=device)
+clip_model.eval()
+
+DISEASES = [
+    {
+        "crop": "Tomato",
+        "disease": "Early Blight",
+        "scientific": "Alternaria solani",
+        "prompt": "tomato leaf with early blight disease",
+        "symptoms": [
+            "yellow spots on leaves",
+            "brown concentric rings",
+            "leaf drying and falling"
+        ],
+        "precautions": [
+            "use disease-free seeds",
+            "avoid overhead irrigation",
+            "apply copper-based fungicide"
+        ]
+    },
+    {
+        "crop": "Tomato",
+        "disease": "Healthy",
+        "scientific": "Solanum lycopersicum",
+        "prompt": "healthy tomato leaf",
+        "symptoms": [
+            "green leaves",
+            "no spots or discoloration"
+        ],
+        "precautions": [
+            "maintain proper watering",
+            "ensure balanced fertilization"
+        ]
+    },
+
+    {
+        "crop": "Potato",
+        "disease": "Late Blight",
+        "scientific": "Phytophthora infestans",
+        "prompt": "potato leaf with late blight disease",
+        "symptoms": [
+            "dark water-soaked lesions",
+            "white fungal growth under leaf",
+            "rapid leaf wilting"
+        ],
+        "precautions": [
+            "remove infected plants",
+            "use resistant varieties",
+            "apply fungicides like mancozeb"
+        ]
+    },
+    {
+        "crop": "Potato",
+        "disease": "Healthy",
+        "scientific": "Solanum tuberosum",
+        "prompt": "healthy potato leaf",
+        "symptoms": [
+            "uniform green color",
+            "no visible lesions"
+        ],
+        "precautions": [
+            "proper spacing",
+            "regular field monitoring"
+        ]
+    },
+
+    {
+        "crop": "Banana",
+        "disease": "Black Sigatoka",
+        "scientific": "Mycosphaerella fijiensis",
+        "prompt": "banana leaf with black sigatoka disease",
+        "symptoms": [
+            "dark streaks on leaves",
+            "yellowing of leaf margins",
+            "reduced photosynthesis"
+        ],
+        "precautions": [
+            "remove infected leaves",
+            "ensure proper air circulation",
+            "apply systemic fungicides"
+        ]
+    },
+    {
+        "crop": "Banana",
+        "disease": "Healthy",
+        "scientific": "Musa species",
+        "prompt": "healthy banana leaf",
+        "symptoms": [
+            "broad green leaves",
+            "no dark streaks"
+        ],
+        "precautions": [
+            "regular pruning",
+            "balanced nutrient supply"
+        ]
+    },
+
+    {
+        "crop": "Apple",
+        "disease": "Apple Scab",
+        "scientific": "Venturia inaequalis",
+        "prompt": "apple leaf with apple scab disease",
+        "symptoms": [
+            "olive green spots",
+            "leaf curling",
+            "premature leaf drop"
+        ],
+        "precautions": [
+            "remove fallen leaves",
+            "use resistant cultivars",
+            "apply sulfur fungicides"
+        ]
+    },
+    {
+        "crop": "Apple",
+        "disease": "Healthy",
+        "scientific": "Malus domestica",
+        "prompt": "healthy apple leaf",
+        "symptoms": [
+            "smooth green leaves",
+            "no spots"
+        ],
+        "precautions": [
+            "regular pruning",
+            "adequate sunlight exposure"
+        ]
+    },
+
+    {
+        "crop": "Rice",
+        "disease": "Blast Disease",
+        "scientific": "Magnaporthe oryzae",
+        "prompt": "rice leaf with blast disease",
+        "symptoms": [
+            "diamond-shaped lesions",
+            "gray center with brown margin",
+            "leaf drying"
+        ],
+        "precautions": [
+            "avoid excess nitrogen fertilizer",
+            "ensure proper field drainage",
+            "use blast-resistant varieties"
+        ]
+    },
+    {
+        "crop": "Rice",
+        "disease": "Healthy",
+        "scientific": "Oryza sativa",
+        "prompt": "healthy rice leaf",
+        "symptoms": [
+            "long green leaves",
+            "no lesions"
+        ],
+        "precautions": [
+            "maintain optimal water levels",
+            "apply balanced fertilizer"
+        ]
+    }
+]
+
+
+
+with torch.no_grad():
+    text_tokens = clip.tokenize([d["prompt"] for d in DISEASES]).to(device)
+    TEXT_FEATURES = clip_model.encode_text(text_tokens)
+    TEXT_FEATURES /= TEXT_FEATURES.norm(dim=-1, keepdim=True)
+
+def clip_predict(image_path):
+    image = clip_preprocess(Image.open(image_path).convert("RGB")).unsqueeze(0).to(device)
+    with torch.no_grad():
+        img_feat = clip_model.encode_image(image)
+        img_feat /= img_feat.norm(dim=-1, keepdim=True)
+        similarity = (img_feat @ TEXT_FEATURES.T).squeeze(0)
+        idx = similarity.argmax().item()
+        confidence = round(float(similarity[idx]) * 100, 2)
+    return DISEASES[idx], confidence
+
+# -------------------------
+# 🔹 Serve HTML Pages
 # -------------------------
 @app.route("/")
-def serve_home():
-    """Landing home page"""
+def home():
     return send_from_directory("frontend", "home.html")
 
 @app.route("/login")
-def serve_login():
+def login_page():
     return send_from_directory("frontend", "login.html")
 
 @app.route("/register")
-def serve_register():
+def register_page():
     return send_from_directory("frontend", "registration.html")
 
 @app.route("/index")
-def serve_index():
+def index_page():
     return send_from_directory("frontend", "index.html")
 
 @app.route("/forgot_password")
-def serve_forgot_password():
+def forgot_page():
     return send_from_directory("frontend", "forgot_password.html")
 
 @app.route("/pastresults")
-def serve_pastresults():
+def past_page():
     return send_from_directory("frontend", "pastresults.html")
 
 @app.route("/<path:path>")
-def serve_frontend(path):
+def serve_static(path):
     return send_from_directory("frontend", path)
 
+# 🔹 Serve uploaded images (for past results)
+@app.route("/uploads/<filename>")
+def uploaded_file(filename):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
 # -------------------------
-# 🔹 Registration
+# 🔹 Auth APIs
 # -------------------------
 @app.route("/api/register", methods=["POST"])
-def register_user():
+def register():
     data = request.get_json()
-    username = data.get("username")
-    password = data.get("password")
-
-    if not username or not password:
-        return jsonify({"message": "Username and password required"}), 400
-
-    if users.find_one({"username": username}):
-        return jsonify({"message": "Username already taken!"}), 409
-
-    hashed_pw = bcrypt.generate_password_hash(password).decode("utf-8")
+    if users.find_one({"username": data["username"]}):
+        return jsonify({"message": "Username already exists"}), 409
     users.insert_one({
-        "username": username,
-        "password": hashed_pw,
+        "username": data["username"],
+        "password": bcrypt.generate_password_hash(data["password"]).decode(),
         "createdAt": datetime.datetime.utcnow()
     })
-    return jsonify({"message": "User registered successfully!"}), 201
+    return jsonify({"message": "Registered successfully"}), 201
 
-# -------------------------
-# 🔹 Login
-# -------------------------
 @app.route("/api/login", methods=["POST"])
-def login_user():
+def login():
     data = request.get_json()
-    username = data.get("username")
-    password = data.get("password")
+    user = users.find_one({"username": data["username"]})
+    if not user or not bcrypt.check_password_hash(user["password"], data["password"]):
+        return jsonify({"message": "Invalid credentials"}), 401
+    return jsonify({"message": "Login successful", "user": {"username": data["username"]}})
 
-    user = users.find_one({"username": username})
-    if not user or not bcrypt.check_password_hash(user["password"], password):
-        return jsonify({"message": "Invalid credentials!"}), 401
 
-    return jsonify({
-        "message": "Login successful",
-        "user": {"username": username}
-    }), 200
 
 # -------------------------
-# 🔹 Reset Password
+# 🔹 Prediction API
 # -------------------------
-@app.route("/api/reset-password", methods=["POST"])
-def reset_password():
-    data = request.get_json()
-    username = data.get("username")
-    new_password = data.get("new_password")
-
-    if not username or not new_password:
-        return jsonify({"message": "Username and new password required"}), 400
-
-    user = users.find_one({"username": username})
-    if not user:
-        return jsonify({"message": "Username not found!"}), 404
-
-    hashed_pw = bcrypt.generate_password_hash(new_password).decode("utf-8")
-    users.update_one({"username": username}, {"$set": {"password": hashed_pw}})
-    return jsonify({"message": "Password successfully reset!"}), 200
-
-# -------------------------
-# 🔹 Prediction API (CDDM schema + Q/A)
-# -------------------------
-MODEL_URL = "http://127.0.0.1:8000/predict"  # optional external model
-
-def _bullets(items):
-    return "• " + "\n• ".join(items) if isinstance(items, list) else str(items)
-
 @app.route("/predict", methods=["POST"])
 def predict():
-    """
-    Save results under the correct username.
-    Accept username from multipart/form-data or JSON; fallback to 'guest'.
-    """
-    # Accept from form-data or JSON body (robust)
-    json_body = {}
-    try:
-        if request.is_json:
-            json_body = request.get_json(silent=True) or {}
-    except Exception:
-        json_body = {}
+    username = request.form.get("username", "guest")
+    question = request.form.get("question", "").lower()
 
-    username = (
-        request.form.get("username")
-        or json_body.get("username")
-        or "guest"
-    )
-    question = (request.form.get("question") or json_body.get("question") or "").strip()
-
-    # Ensure there's an image (multipart/form-data)
     image_file = request.files.get("image")
-    if image_file is None:
-        return jsonify({"error": "No image uploaded"}), 400
+    if not image_file:
+        return jsonify({"error": "Image required"}), 400
 
-    # Save image to disk
-    filename = secure_filename(image_file.filename or f"upload_{int(datetime.datetime.utcnow().timestamp())}.jpg")
-    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-    image_file.save(filepath)
+    filename = secure_filename(image_file.filename)
+    path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    image_file.save(path)
 
-    try:
-        # Optional: compress/resize
-        try:
-            img = Image.open(filepath).convert("RGB")
-            img.thumbnail((512, 512))
-            img.save(filepath)
-        except Exception:
-            pass
+    prediction, confidence = clip_predict(path)
 
-        # Optional: call external model
-        ai_result = None
-        try:
-            with open(filepath, "rb") as f:
-                resp = requests.post(MODEL_URL, files={"image": f})
-            if resp.ok:
-                ai_result = resp.json()
-        except Exception:
-            ai_result = None
+    cddm = {
+        "image_id": filename,
+        "crop": prediction["crop"],
+        "disease_name": prediction["disease"],
+        "scientific_name": prediction["scientific"],
+        "symptoms": ["Detected using CLIP multimodal inference"],
+        "causes": ["Vision–language similarity matching"],
+        "solutions": {
+            "cultural": ["Crop rotation", "Remove infected leaves"],
+            "biological": ["Bio-fungicide"],
+            "chemical": ["Apply Mancozeb if severe"]
+        },
+        "prevention_summary": "AI-based multimodal crop disease diagnosis"
+    }
 
-        # Build consistent CDDM-like object
-        cddm = {
-            "image_id": filename,
-            "crop": "Tomato",
-            "disease_name": "Early Blight",
-            "scientific_name": "Alternaria solani",
-            "symptoms": [
-                "Dark brown concentric (target-like) spots on older leaves",
-                "Yellowing and drying of lower leaves",
-                "Dark, sunken lesions on stems near soil line",
-                "Fruit shows dark, leathery spots near stem end"
-            ],
-            "causes": [
-                "Fungal infection caused by Alternaria solani",
-                "Warm and humid conditions (24–29°C)",
-                "Splashing water spreading fungal spores from soil",
-                "Overhead irrigation and poor air circulation",
-                "Infected crop debris or seeds left in the field"
-            ],
-            "solutions": {
-                "cultural": [
-                    "Rotate crops; avoid planting tomato/potato in same field for 2–3 years",
-                    "Use resistant or tolerant varieties",
-                    "Water using drip irrigation, avoid wetting leaves",
-                    "Apply mulch to reduce soil splash",
-                    "Remove and destroy infected plant residues"
-                ],
-                "biological": [
-                    "Apply bio-fungicides like Trichoderma harzianum or Bacillus subtilis"
-                ],
-                "chemical": [
-                    "Spray copper oxychloride or chlorothalonil as protectant fungicide",
-                    "Use azoxystrobin or mancozeb if infection is severe"
-                ]
-            },
-            "prevention_summary": "Keep foliage dry, rotate crops, use resistant varieties, remove infected debris, and monitor weather for humid periods."
-        }
+    results.insert_one({
+        "user": username,
+        "filename": filename,
+        "prediction": {
+            "disease": cddm["disease_name"],
+            "confidence": confidence
+        },
+        "record": cddm,
+        "createdAt": datetime.datetime.utcnow()
+    })
 
-        # Q/A extraction
-        q = question.lower()
-        qa_type = "summary"
-        qa_answer = (
-            f"{cddm['disease_name']} on {cddm['crop']} ({cddm['scientific_name']}).\n"
-            f"Key symptom: {cddm['symptoms'][0]}\n"
-            f"Prevention: {cddm['prevention_summary']}"
-        )
+    # Do NOT delete the file; needed for past results image display.
+    # os.remove(path)
 
-        if any(k in q for k in ["symptom", "sign"]):
-            qa_type = "symptoms"
-            qa_answer = _bullets(cddm["symptoms"])
-        elif any(k in q for k in ["cause", "reason", "why"]):
-            qa_type = "causes"
-            qa_answer = _bullets(cddm["causes"])
-        elif "cultural" in q:
-            qa_type = "solutions.cultural"
-            qa_answer = _bullets(cddm["solutions"]["cultural"])
-        elif "biological" in q or "bio" in q:
-            qa_type = "solutions.biological"
-            qa_answer = _bullets(cddm["solutions"]["biological"])
-        elif any(k in q for k in ["chemical", "spray", "fungicide", "medicine", "treat", "cure"]):
-            qa_type = "solutions.chemical"
-            qa_answer = _bullets(cddm["solutions"]["chemical"])
-        elif any(k in q for k in ["solution", "treatment", "manage", "control"]):
-            qa_type = "solutions"
-            all_solutions = (
-                ["CULTURAL:"] + cddm["solutions"]["cultural"] +
-                ["", "BIOLOGICAL:"] + cddm["solutions"]["biological"] +
-                ["", "CHEMICAL:"] + cddm["solutions"]["chemical"]
-            )
-            qa_answer = _bullets(all_solutions)
-        elif any(k in q for k in ["prevent", "avoid", "prevention"]):
-            qa_type = "prevention_summary"
-            qa_answer = cddm["prevention_summary"]
-        elif any(k in q for k in ["scientific", "species", "name"]):
-            qa_type = "scientific_name"
-            qa_answer = cddm["scientific_name"]
-
-        response = {
-            **cddm,
-            "question": question,
-            "qa_type": qa_type,
-            "qa_answer": qa_answer
-        }
-
-        # Save result with ISO-convertible createdAt
-        now = datetime.datetime.utcnow()
-        results.insert_one({
-            "user": username,
-            "filename": filename,
-            "prediction": {
-                "disease": cddm["disease_name"],
-                "confidence": 93  # fixed demo confidence
-            },
-            "record": response,
-            "createdAt": now
-        })
-
-        # Cleanup local file
-        try:
-            if os.path.exists(filepath):
-                os.remove(filepath)
-        except Exception:
-            pass
-
-        return jsonify(response), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({**cddm, "confidence": confidence}), 200
 
 # -------------------------
-# 🔹 Get Past Results
+# 🔹 Past Results
 # -------------------------
 @app.route("/api/past-results", methods=["GET"])
-def get_past_results():
+def past_results():
     username = request.args.get("username")
-    if not username:
-        return jsonify({"message": "Username is required"}), 400
-
-    past = list(results.find({"user": username}).sort("createdAt", -1).limit(10))
-
-    # Convert ObjectId and datetime to strings
-    out = []
-    for r in past:
-        r["_id"] = str(r.get("_id"))
-        if isinstance(r.get("createdAt"), datetime.datetime):
-            r["createdAt"] = r["createdAt"].isoformat()
-        out.append(r)
-
-    return jsonify(out), 200
+    past = list(results.find({"user": username}).sort("createdAt", -1))
+    for p in past:
+        p["_id"] = str(p["_id"])
+        p["createdAt"] = p["createdAt"].isoformat()
+    return jsonify(past)
 
 # -------------------------
 # 🔹 Clear History
@@ -319,34 +340,25 @@ def get_past_results():
 @app.route("/api/clear-history", methods=["DELETE"])
 def clear_history():
     username = request.args.get("username")
-    if not username:
-        return jsonify({"message": "Username is required"}), 400
-
-    delete_result = results.delete_many({"user": username})
-    return jsonify({
-        "message": f"Deleted {delete_result.deleted_count} past results.",
-        "deleted_count": delete_result.deleted_count
-    }), 200
+    deleted = results.delete_many({"user": username}).deleted_count
+    return jsonify({"message": f"Deleted {deleted} records"})
 
 # -------------------------
-# 🔹 Debug: counts by user (optional)
+# 🔹 Debug
 # -------------------------
-@app.route("/api/debug-counts", methods=["GET"])
+@app.route("/api/debug-counts")
 def debug_counts():
-    pipeline = [
-        {"$group": {"_id": "$user", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}}
-    ]
-    agg = list(results.aggregate(pipeline))
-    # reshape for nicer JSON
-    for a in agg:
-        a["user"] = a.pop("_id")
-    return jsonify(agg), 200
+    pipeline = [{"$group": {"_id": "$user", "count": {"$sum": 1}}}]
+    data = list(results.aggregate(pipeline))
+    for d in data:
+        d["user"] = d.pop("_id")
+    return jsonify(data)
 
 # -------------------------
-# 🔹 Run Flask App
+# 🔹 Run App
 # -------------------------
 if __name__ == "__main__":
-    print("Connected to MongoDB:", client.list_database_names())
+    print("Connected DB:", client.list_database_names())
     app.run(debug=True, port=5000)
+
 
